@@ -1,0 +1,26 @@
+cabal-version: 3.0
+name: haskell-bobkonf2026
+version: 0.1
+build-type: Simple
+
+common general
+  default-language: GHC2021
+  ghc-options: -Wall
+
+library
+  import: general
+  hs-source-dirs: src
+  build-depends:
+    base,
+    scotty
+  exposed-modules:
+    Tutorial
+
+executable bobserver
+  import: general
+  hs-source-dirs: app
+  build-depends:
+    base,
+    haskell-bobkonf2026
+  main-is:
+    Main.hs
