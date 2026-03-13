@@ -10,15 +10,21 @@ common general
 library
   import: general
   hs-source-dirs: src
+  ghc-options: -threaded
   build-depends:
     base,
-    scotty
+    aeson,
+    containers,
+    scotty,
+    stm,
+    time
   exposed-modules:
     Tutorial
 
 executable bobserver
   import: general
   hs-source-dirs: app
+  ghc-options: -threaded
   build-depends:
     base,
     haskell-bobkonf2026
