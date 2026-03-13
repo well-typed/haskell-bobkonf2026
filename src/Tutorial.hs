@@ -87,7 +87,7 @@ printRanks = error "implement me"
 -- - Get an impression of how to work with "effectful", even concurrent code.
 
 main :: IO ()
-main = highScoreService
+main = putStrLn "Hello world" -- highScoreService
 
 type HighScoreState = Map Name Score
 
