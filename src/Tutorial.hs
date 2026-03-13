@@ -106,7 +106,8 @@ highScoreRoutes t = do
 -- Exercise B1.
 --
 -- Compute the initial high score map.
--- Use: Map.fromList, map, anonymous function
+-- Use: Map.fromList
+-- What will this do with name duplicates?
 
 initialScores :: HighScoreState
 initialScores = error "implement me"
@@ -114,22 +115,25 @@ initialScores = error "implement me"
 -- Exercise B2.
 --
 -- Add an endpoint to submit a new score and add it to highScoreRoutes.
--- Use: get/post, atomically, modifyTVar, Map.insert
+-- Use: get/post, atomically, modifyTVar, Map.insert, liftIO
 
 -- Exercise B3.
 --
 -- Add an endpoint to query for the top score and add it to highScoreRoutes.
+-- Return the name and the score (using Named).
+-- Use: readTVarIO, Map.toList, NonEmpty.nonEmpty, fmap, maximumBy, snd, json
 
 -- Exercise B4.
 --
 -- Modify score submission so that it does not overwrite higher scores with
 -- lower scores.
+-- Use: Map.alter, max / if-then-else / guards / ...
 
 -- Exercise B5.
 --
--- Tag every score with the current time. In the endpoints for querying info,
+-- Tag every score with the current time upon submission.
+-- Make all the changes necessary. In the endpoints for querying info,
 -- print also the times.
---
 -- Use: getCurrentTime, new datatype for scores with times
 
 -- Exercise B6.
