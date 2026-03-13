@@ -159,6 +159,7 @@ data Command r where
 --
 -- Implement a function to run a single command, producing a corresponding
 -- result and a new state.
+-- (If doing this after B5, you may have to pass in a UTCTime explicitly.)
 
 runCommand :: Command r -> HighScoreState -> (r, HighScoreState)
 runCommand = error "implement me"
@@ -167,11 +168,10 @@ runCommand = error "implement me"
 --
 -- Implement a function to run a single commmand atomically as a side-effecting
 -- computation.
---
 -- Use: readTVar, writeTVar
 
 runCommandAtomically :: TVar HighScoreState -> Command r -> IO r
-runCommandAtomically = error "impement me"
+runCommandAtomically = error "implement me"
 
 -- Exercise C3.
 --
