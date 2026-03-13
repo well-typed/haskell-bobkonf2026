@@ -68,7 +68,7 @@ sortByScore = sortBy (flip (comparing value))
 
 -- Exercise A3.
 --
--- Remove duplicates and add numeric ranks.
+-- Remove name duplicates and add numeric ranks.
 -- Use: nubOrdOn, zip, enumFrom (via range notation)
 
 ranks :: [Named Score] -> [(Int, Named Score)]
@@ -114,35 +114,80 @@ highScoreRoutes t = do
     name <- queryParam "name"
     scores <- liftIO (readTVarIO t)
     json (Map.lookup name scores)
+  submitScore' t
+  topScore t
 
 -- Exercise B1.
 --
 -- Compute the initial high score map.
--- Use: Map.fromList, map, anonymous function
+-- Use: Map.fromList
+-- What will this do with name duplicates?
 
 initialScores :: HighScoreState
-initialScores = error "implement me"
+initialScores =
+  Map.fromList (map (\ (MkNamed n s) -> (n, s)) (nubOrdOn name (sortByScore exampleScores)))
 
 -- Exercise B2.
 --
 -- Add an endpoint to submit a new score and add it to highScoreRoutes.
--- Use: get/post, atomically, modifyTVar, Map.insert
+-- Use: get/post, atomically, modifyTVar, Map.insert, liftIO
+
+submitScore :: TVar HighScoreState -> ScottyM ()
+submitScore t = do
+  post "/scores/submit" $ do
+    name <- queryParam "name"
+    score <- queryParam "score"
+    liftIO (atomically (modifyTVar t (Map.insert name score)))
+  get "/scores/submit" $ do
+    name <- queryParam "name"
+    score <- queryParam "score"
+    liftIO (atomically (modifyTVar t (Map.insert name score)))
 
 -- Exercise B3.
 --
 -- Add an endpoint to query for the top score and add it to highScoreRoutes.
+-- Return the name and the score (using Named).
+-- Use: readTVarIO, Map.toList, NonEmpty.nonEmpty, fmap, maximumBy, snd, json
+
+topScore :: TVar HighScoreState -> ScottyM ()
+topScore t = do
+  get "/scores/top" $ do
+    scores <- liftIO (readTVarIO t)
+    json
+      (fmap (uncurry MkNamed . maximumBy (comparing snd))
+        (NonEmpty.nonEmpty (Map.toList scores))
+      )
 
 -- Exercise B4.
 --
 -- Modify score submission so that it does not overwrite higher scores with
 -- lower scores.
 
+submitScore' :: TVar HighScoreState -> ScottyM ()
+submitScore' t = do
+  post "/scores/submit" aux
+  get "/scores/submit" aux
+  where
+    aux :: ActionM ()
+    aux = do
+      name <- queryParam "name"
+      score <- queryParam "score"
+      liftIO (atomically (modifyTVar t (insertIfHigher name score)))
+
+insertIfHigher :: Name -> Score -> HighScoreState -> HighScoreState
+insertIfHigher n s m = Map.alter (max (Just s)) n m
+-- NOTE: This makes use of the fact that Nothing is smaller than any Just-constructed
+-- value.
+
 -- Exercise B5.
 --
--- Tag every score with the current time. In the endpoints for querying info,
--- print also the times.
+-- Tag every score with the current time. Make all the changes necessary.
+-- In the endpoints for querying info, print also the times.
 --
 -- Use: getCurrentTime, new datatype for scores with times
+
+data TimedScore = MkTimedScore { score :: Score, time :: UTCTime }
+  deriving (Eq, Generic, Show, ToJSON)
 
 -- Exercise B6.
 --
