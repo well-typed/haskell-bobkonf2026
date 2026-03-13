@@ -13,6 +13,7 @@
    `"Hello world"`.
 
 4. To test your editor and HLS installation, you should be able (ideally after building) to open the root directory
-   of this repository, then navigate to `src/Tutorial.hs`. You should have syntax highlighting, and hovering with
-   the mouse over the string `"Hello world"` should display a small window with something like `_ :: String` in it.
+   of this repository, then navigate to `src/Tutorial.hs`. You should have syntax highlighting, and finding the line
+   saying `main = putStrLn "Hello world"` and hovering with the mouse over the string `"Hello world"` should display
+   a small window with something like `_ :: String` in it.
 
