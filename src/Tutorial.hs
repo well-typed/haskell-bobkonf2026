@@ -99,7 +99,7 @@ printRanks = putStr . ranksString
 -- - Get an impression of how to work with "effectful", even concurrent code.
 
 main :: IO ()
-main = highScoreService
+main = timedHighScoreService -- highScoreService
 
 type HighScoreState = Map Name Score
 
@@ -188,7 +188,52 @@ insertIfHigher n s m = Map.alter (max (Just s)) n m
 -- Use: getCurrentTime, new datatype for scores with times
 
 data TimedScore = MkTimedScore { score :: Score, time :: UTCTime }
-  deriving (Eq, Generic, Show, ToJSON)
+  deriving (Eq, Ord, Generic, Show, ToJSON)
+
+type TimedHighScoreState = Map Name TimedScore
+
+timedHighScoreService :: IO ()
+timedHighScoreService = do
+  now <- liftIO getCurrentTime
+  t <- newTVarIO (fmap (\ score -> MkTimedScore score now) initialScores)
+  scotty 8888 (timedHighScoreRoutes t)
+
+timedHighScoreRoutes :: TVar TimedHighScoreState -> ScottyM ()
+timedHighScoreRoutes t = do
+  get "/scores/query" $ do
+    name <- queryParam "name"
+    scores <- liftIO (readTVarIO t)
+    json (Map.lookup name scores)
+  timedSubmitScore t
+  timedTopScore t
+
+timedSubmitScore :: TVar TimedHighScoreState -> ScottyM ()
+timedSubmitScore t = do
+  post "/scores/submit" aux
+  get "/scores/submit" aux
+  where
+    aux :: ActionM ()
+    aux = do
+      name <- queryParam "name"
+      score <- queryParam "score"
+      now <- liftIO getCurrentTime
+      liftIO (atomically (modifyTVar t (timedInsertIfHigher name (MkTimedScore score now))))
+
+timedInsertIfHigher :: Name -> TimedScore -> TimedHighScoreState -> TimedHighScoreState
+timedInsertIfHigher n s m = Map.alter (max (Just s)) n m
+-- NOTE: This makes use of the fact that the derived ordering on TimedScore is
+-- lexicographical.
+
+timedTopScore :: TVar TimedHighScoreState -> ScottyM ()
+timedTopScore t = do
+  get "/scores/top" $ do
+    scores <- liftIO (readTVarIO t)
+    json
+      (fmap (uncurry MkNamed . maximumBy (comparing snd))
+        (NonEmpty.nonEmpty (Map.toList scores))
+      )
+-- NOTE: This is identical to before, we could also have solved this by generalising
+-- the type signature.
 
 -- Exercise B6.
 --
