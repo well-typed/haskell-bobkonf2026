@@ -162,6 +162,7 @@ topScore t = do
 --
 -- Modify score submission so that it does not overwrite higher scores with
 -- lower scores.
+-- Use: Map.alter, max / if-then-else / guards / ...
 
 submitScore' :: TVar HighScoreState -> ScottyM ()
 submitScore' t = do
@@ -181,9 +182,9 @@ insertIfHigher n s m = Map.alter (max (Just s)) n m
 
 -- Exercise B5.
 --
--- Tag every score with the current time. Make all the changes necessary.
--- In the endpoints for querying info, print also the times.
---
+-- Tag every score with the current time upon submission.
+-- Make all the changes necessary. In the endpoints for querying info,
+-- print also the times.
 -- Use: getCurrentTime, new datatype for scores with times
 
 data TimedScore = MkTimedScore { score :: Score, time :: UTCTime }
