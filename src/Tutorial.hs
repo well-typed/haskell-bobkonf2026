@@ -27,7 +27,7 @@ import Web.Scotty
 --
 
 data Named a = MkNamed { name :: Name, value :: a }
-  deriving (Eq, Ord, Generic, Show, ToJSON)
+  deriving (Eq, Generic, Show, ToJSON)
 
 type Name = String
 type Score = Int
