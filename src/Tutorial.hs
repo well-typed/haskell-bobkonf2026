@@ -99,7 +99,10 @@ printRanks = putStr . ranksString
 -- - Get an impression of how to work with "effectful", even concurrent code.
 
 main :: IO ()
-main = timedHighScoreService -- highScoreService
+main =
+  cmdHighScoreService
+  -- timedHighScoreService
+  -- highScoreService
 
 type HighScoreState = Map Name Score
 
@@ -153,9 +156,12 @@ topScore :: TVar HighScoreState -> ScottyM ()
 topScore t = do
   get "/scores/top" $ do
     scores <- liftIO (readTVarIO t)
-    json
+    json (maxNamedMap scores)
+
+maxNamedMap :: Ord a => Map Name a -> Maybe (Named a)
+maxNamedMap m =
       (fmap (uncurry MkNamed . maximumBy (comparing snd))
-        (NonEmpty.nonEmpty (Map.toList scores))
+        (NonEmpty.nonEmpty (Map.toList m))
       )
 
 -- Exercise B4.
@@ -228,10 +234,7 @@ timedTopScore :: TVar TimedHighScoreState -> ScottyM ()
 timedTopScore t = do
   get "/scores/top" $ do
     scores <- liftIO (readTVarIO t)
-    json
-      (fmap (uncurry MkNamed . maximumBy (comparing snd))
-        (NonEmpty.nonEmpty (Map.toList scores))
-      )
+    json (maxNamedMap scores)
 -- NOTE: This is identical to before, we could also have solved this by generalising
 -- the type signature.
 
@@ -252,43 +255,80 @@ timedTopScore t = do
 
 data Command r where
   Submit :: Name -> Score -> Command ()
-  Query  :: Name -> Command (Maybe Score) -- possibly change the type here as a result of Ex. B5
+  Query  :: Name -> Command (Maybe TimedScore)
+  Top    :: Command (Maybe (Named TimedScore))
 
 -- Exercise C1.
 --
 -- Implement a function to run a single command, producing a corresponding
 -- result and a new state.
+-- (If doing this after B5, you may have to pass in a UTCTime explicitly.)
 
-runCommand :: Command r -> HighScoreState -> (r, HighScoreState)
-runCommand = error "implement me"
+runCommand :: Command r -> UTCTime -> TimedHighScoreState -> (r, TimedHighScoreState)
+runCommand (Submit n s) now scores = ((), timedInsertIfHigher n (MkTimedScore s now) scores)
+runCommand (Query n)    _   scores = (Map.lookup n scores, scores)
+runCommand Top          _   scores = (maxNamedMap scores, scores)
 
 -- Exercise C2.
 --
 -- Implement a function to run a single commmand atomically as a side-effecting
 -- computation.
---
 -- Use: readTVar, writeTVar
 
-runCommandAtomically :: TVar HighScoreState -> Command r -> IO r
-runCommandAtomically = error "impement me"
+runCommandAtomically :: TVar TimedHighScoreState -> Command r -> IO r
+runCommandAtomically t cmd = do
+  now <- getCurrentTime
+  atomically $ do
+    scores <- readTVar t
+    let (response, scores') = runCommand cmd now scores
+    writeTVar t scores'
+    pure response
 
 -- Exercise C3.
 --
 -- Implement a function to run a command as part of an endpoint, and to
 -- display its result in JSON.
 
-runCommandAtomicallyScotty :: ToJSON r => TVar HighScoreState -> Command r -> ActionM ()
-runCommandAtomicallyScotty = error "implement me"
+runCommandAtomicallyScotty :: ToJSON r => TVar TimedHighScoreState -> Command r -> ActionM ()
+runCommandAtomicallyScotty t cmd = do
+  response <- liftIO (runCommandAtomically t cmd)
+  json response
+-- NOTE: This is slightly different from before, because it *always* sends
+-- an explicit response.
 
 -- Exercise C4.
 --
 -- Adapt the routing table (or write a new one) so that it makes use
 -- of runCommandAtomicallyScotty.
 
+cmdHighScoreService :: IO ()
+cmdHighScoreService = do
+  now <- liftIO getCurrentTime
+  t <- newTVarIO (fmap (\ score -> MkTimedScore score now) initialScores)
+  scotty 8888 (cmdHighScoreRoutes t)
+
+cmdHighScoreRoutes :: TVar TimedHighScoreState -> ScottyM ()
+cmdHighScoreRoutes t = do
+  get "/scores/query" $ do
+    name <- queryParam "name"
+    runCommandAtomicallyScotty t (Query name)
+  post "/scores/submit" $ do
+    name <- queryParam "name"
+    score <- queryParam "score"
+    runCommandAtomicallyScotty t (Submit name score)
+  get "/scores/submit" $ do
+    name <- queryParam "name"
+    score <- queryParam "score"
+    runCommandAtomicallyScotty t (Submit name score)
+  get "/scores/top" $ do
+    runCommandAtomicallyScotty t Top
+
 -- Exercise C5.
 --
 -- Adapt this new setup to other extensions made in Part 2 (current time,
 -- more commands, ...).
+
+-- (Integrated above.)
 
 -- Exercise C6.
 --
