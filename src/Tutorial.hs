@@ -18,7 +18,7 @@ import Data.Time
 import GHC.Generics
 import Web.Scotty
 
--- PART 1. BASICS.
+-- PART A. BASICS.
 --
 -- Main goals:
 --
@@ -27,7 +27,7 @@ import Web.Scotty
 --
 
 data Named a = MkNamed { name :: Name, value :: a }
-  deriving (Eq, Generic, Show, ToJSON)
+  deriving (Eq, Ord, Generic, Show, ToJSON)
 
 type Name = String
 type Score = Int
@@ -43,52 +43,55 @@ exampleScores =
   , MkNamed "Edsko"  88
   ]
 
--- Exercise 1.
+-- Exercise A1.
 --
 -- Find the total score.
 -- Use: map, sum
 --
 
 totalScore :: [Named Score] -> Score
-totalScore = error "implement me"
+totalScore scores = sum (map value scores)
 
--- Exercise 2.
---
--- Find the number of duplicates.
--- Use: sort, group, length, sum
+-- >>> totalScore exampleScores
+-- 289
 
-countDuplicates :: [Named Score] -> Int
-countDuplicates = error "implement me"
-
--- Exercise 3.
+-- Exercise A2.
 --
--- Sort by score.
---
--- Use: sortBy, comparing
+-- Sort by score (highest first).
+-- Use: sortBy, comparing, flip
 
 sortByScore :: [Named Score] -> [Named Score]
-sortByScore = error "implement me"
+sortByScore = sortBy (flip (comparing value))
 
--- Exercise 4.
+-- >>> sortByScore exampleScores
+-- [MkNamed {name = "Edsko", value = 120},MkNamed {name = "Edsko", value = 88},MkNamed {name = "Mike", value = 19},MkNamed {name = "Andres", value = 17},MkNamed {name = "Andres", value = 16},MkNamed {name = "Duncan", value = 15},MkNamed {name = "Andres", value = 14}]
+
+-- Exercise A3.
 --
 -- Remove duplicates and add numeric ranks.
--- Use: nubOrd, zip, enumFrom (via range notation)
+-- Use: nubOrdOn, zip, enumFrom (via range notation)
 
 ranks :: [Named Score] -> [(Int, Named Score)]
-ranks = error "implement me"
+ranks = zip [1 ..] . nubOrdOn name . sortByScore
 
--- Exercise 5.
+-- >>> ranks exampleScores
+-- [(1,MkNamed {name = "Edsko", value = 120}),(2,MkNamed {name = "Mike", value = 19}),(3,MkNamed {name = "Andres", value = 17}),(4,MkNamed {name = "Duncan", value = 15})]
+
+-- Exercise A4.
 --
 -- Turn everything into a string and print it.
 -- Use: show, (<>), unlines, putStr
 
 ranksString :: [Named Score] -> String
-ranksString = error "implement me"
+ranksString scores = unlines (map (\ (r, (MkNamed n s)) -> show r <> " " <> n <> " (" <> show s <> ")") (ranks scores))
+
+-- >>> ranksString exampleScores
+-- "1 Edsko (120)\n2 Mike (19)\n3 Andres (17)\n4 Duncan (15)\n"
 
 printRanks :: [Named Score] -> IO ()
-printRanks = error "implement me"
+printRanks = putStr . ranksString
 
--- PART 2. WEB SERVICE.
+-- PART B. WEB SERVICE.
 --
 -- Main goals:
 --
@@ -112,7 +115,7 @@ highScoreRoutes t = do
     scores <- liftIO (readTVarIO t)
     json (Map.lookup name scores)
 
--- Exercise 6.
+-- Exercise B1.
 --
 -- Compute the initial high score map.
 -- Use: Map.fromList, map, anonymous function
@@ -120,28 +123,28 @@ highScoreRoutes t = do
 initialScores :: HighScoreState
 initialScores = error "implement me"
 
--- Exercise 7.
+-- Exercise B2.
 --
 -- Add an endpoint to submit a new score and add it to highScoreRoutes.
 -- Use: get/post, atomically, modifyTVar, Map.insert
 
--- Exercise 8.
+-- Exercise B3.
 --
 -- Add an endpoint to query for the top score and add it to highScoreRoutes.
 
--- Exercise 9.
+-- Exercise B4.
 --
 -- Modify score submission so that it does not overwrite higher scores with
 -- lower scores.
 
--- Exercise 10.
+-- Exercise B5.
 --
 -- Tag every score with the current time. In the endpoints for querying info,
 -- print also the times.
 --
 -- Use: getCurrentTime, new datatype for scores with times
 
--- Exercise 11.
+-- Exercise B6.
 --
 -- Other extension ideas:
 -- - store all submitted scores per user
@@ -149,7 +152,7 @@ initialScores = error "implement me"
 -- - add an endpoint to delete all scores for a given user
 -- - ...
 
--- PART 3. ISOLATING THE CORE LOGIC. (if time permits)
+-- PART C. ISOLATING THE CORE LOGIC. (if time permits)
 --
 -- Main goals:
 --
@@ -158,9 +161,9 @@ initialScores = error "implement me"
 
 data Command r where
   Submit :: Name -> Score -> Command ()
-  Query  :: Name -> Command (Maybe Score) -- possibly change the type here as a result of Ex. 10
+  Query  :: Name -> Command (Maybe Score) -- possibly change the type here as a result of Ex. B5
 
--- Exercise 12.
+-- Exercise C1.
 --
 -- Implement a function to run a single command, producing a corresponding
 -- result and a new state.
@@ -168,7 +171,7 @@ data Command r where
 runCommand :: Command r -> HighScoreState -> (r, HighScoreState)
 runCommand = error "implement me"
 
--- Exercise 13.
+-- Exercise C2.
 --
 -- Implement a function to run a single commmand atomically as a side-effecting
 -- computation.
@@ -178,7 +181,7 @@ runCommand = error "implement me"
 runCommandAtomically :: TVar HighScoreState -> Command r -> IO r
 runCommandAtomically = error "impement me"
 
--- Exercise 14.
+-- Exercise C3.
 --
 -- Implement a function to run a command as part of an endpoint, and to
 -- display its result in JSON.
@@ -186,17 +189,17 @@ runCommandAtomically = error "impement me"
 runCommandAtomicallyScotty :: ToJSON r => TVar HighScoreState -> Command r -> ActionM ()
 runCommandAtomicallyScotty = error "implement me"
 
--- Exercise 15.
+-- Exercise C4.
 --
 -- Adapt the routing table (or write a new one) so that it makes use
 -- of runCommandAtomicallyScotty.
 
--- Exercise 16.
+-- Exercise C5.
 --
 -- Adapt this new setup to other extensions made in Part 2 (current time,
 -- more commands, ...).
 
--- Exercise 17.
+-- Exercise C6.
 --
 -- There are several wider ideas for extending this setup, for example:
 -- - write a CLI-based user interface,
